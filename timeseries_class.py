@@ -424,7 +424,7 @@ def from_arrays(
 @classmethod
 def from_csv(cls, filepath, **kwargs):
 
-    from io.csv_io import read_csv_timeseries
+    from read_write_csv.py import read_csv_timeseries
 
     return read_csv_timeseries(filepath, **kwargs)
 
@@ -432,7 +432,7 @@ def from_csv(cls, filepath, **kwargs):
 @classmethod
 def from_pos(cls, filepath, **kwargs):
 
-    from io.pos_io import read_pos_timeseries
+    from read_pos.py import read_pos_timeseries
 
     return read_pos_timeseries(filepath, **kwargs)
 
@@ -440,7 +440,7 @@ def from_pos(cls, filepath, **kwargs):
 @classmethod
 def from_tenv(cls, filepath, **kwargs):
 
-    from io.tenv_io import read_tenv_timeseries
+    from read_tenv.py import read_tenv_timeseries
 
     return read_tenv_timeseries(filepath, **kwargs)
 
@@ -448,6 +448,6 @@ def from_tenv(cls, filepath, **kwargs):
 @classmethod
 def from_rneu(cls, filepath, **kwargs):
 
-    from io.rneu_io import read_rneu_timeseries
+    from read_rneu.py import read_rneu_timeseries
 
     return read_rneu_timeseries(filepath, **kwargs)
