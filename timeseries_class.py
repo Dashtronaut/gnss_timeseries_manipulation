@@ -12,28 +12,13 @@ from scipy import signal
 # Immutable just to make sure the original doesn't get altered in some way
 @dataclass(frozen=True)
 class TimeSeries:
-    name: str
-
-    data: pd.DataFrame
-
-    latitude: float
-    longitude: float
-
-    reference_frame: str
-
-    eqtimes: List[dt.datetime] = field(default_factory=list)
-    offsets: List[dt.datetime] = field(default_factory=list)
+    name: str, data: pd.DataFrame, latitude: float, longitude: float, reference_frame: str
+    eqtimes: List[dt.datetime] = field(default_factory=list), offsets: List[dt.datetime] = field(default_factory=list)
 
     def __post_init__(self):
 
         required_columns = [
-            "east",
-            "north",
-            "up",
-            "sigma_east",
-            "sigma_north",
-            "sigma_up"
-        ]
+            "east", "north", "up", "sigma_east", "sigma_north","sigma_up"]
 
         # Checking for required columns and expected values
         missing = [
@@ -276,19 +261,169 @@ class TimeSeries:
         return self._new(df)
 
     # Removes offsets in internal data object list
-    def remove_offsets(self):
+    def fit_offset(
+    self,
+    offset_time,
+    window_days=30,
+    component="east"
+):
+    """
+    Estimate an instantaneous offset.
 
-        ts = self
+    Parameters
+    ----------
+    offset_time : datetime
+        Time of offset.
+    window_days : int
+        Number of days before/after used to estimate
+        pre- and post-offset means.
+    component : str
+        One of "east", "north", or "up".
 
-        all_offsets = (
-            list(self.eqtimes) +
-            list(self.offsets)
+    Returns
+    -------
+    float
+        Estimated offset.
+    """
+
+    return self.fit_interval_offset(
+        offset_time,
+        offset_time,
+        window_days=window_days,
+        component=component
+    )
+
+
+    def fit_interval_offset(
+        self,
+        start_time,
+        end_time,
+        window_days=30,
+        component="east"
+    ):
+        """
+        Estimate an offset occurring over a time interval.
+    
+        Parameters
+        ----------
+        start_time : datetime
+            Beginning of offset interval.
+    
+        end_time : datetime
+            End of offset interval.
+    
+        window_days : int
+            Averaging window before and after interval.
+    
+        component : str
+            One of "east", "north", or "up".
+    
+        Returns
+        -------
+        float
+            Estimated offset.
+        """
+    
+        if component not in ["east", "north", "up"]:
+            raise ValueError(
+                "component must be east, north, or up"
+            )
+    
+        if end_time < start_time:
+            raise ValueError(
+                "end_time must be >= start_time"
+            )
+    
+        idx = self.data.index
+        y = self.data[component]
+    
+        before_mask = (
+            (idx >= start_time - pd.Timedelta(days=window_days))
+            &
+            (idx <= start_time)
         )
+    
+        after_mask = (
+            (idx >= end_time)
+            &
+            (idx <= end_time + pd.Timedelta(days=window_days))
+        )
+    
+        before = y.loc[before_mask]
+        after = y.loc[after_mask]
+    
+        if len(before) < 2 or len(after) < 2:
+    
+            print(
+                f"Warning: insufficient data around "
+                f"{start_time:%Y-%m-%d}. "
+                "Returning offset=0."
+            )
+    
+            return 0.0
+    
+        before_mean = np.nanmean(before)
+        after_mean = np.nanmean(after)
+    
+        offset = after_mean - before_mean
+    
+        if np.isnan(offset):
+    
+            print(
+                f"Warning: NaN offset found at "
+                f"{start_time:%Y-%m-%d}. "
+                "Returning offset=0."
+            )
+    
+            return 0.0
+    
+        return float(offset)
 
-        for offset in sorted(all_offsets):
-            ts = ts.remove_offset(offset)
-
-        return ts
+        
+    def apply_offset(
+        self,
+        offset_time,
+        offset,
+        component="east",
+        subtract=True
+    ):
+        """
+        Apply an offset correction.
+    
+        Parameters
+        ----------
+        offset_time : datetime
+            Time where offset begins.
+    
+        offset : float
+            Offset magnitude.
+    
+        component : str
+            One of "east", "north", or "up".
+    
+        subtract : bool
+            If True, removes the offset.
+            If False, adds the offset.
+    
+        Returns
+        -------
+        TimeSeries
+        """
+    
+        if component not in ["east", "north", "up"]:
+            raise ValueError(
+                "component must be east, north, or up"
+            )
+    
+        df = self.data.copy()
+    
+        sign = -1 if subtract else 1
+    
+        mask = df.index >= offset_time
+    
+        df.loc[mask, component] += sign * offset
+    
+        return self._new(df)
 
     
     # Basic pandas plot
