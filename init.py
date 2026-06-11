@@ -1,9 +1,4 @@
 """
-gnss_tools
-==========
-A quick Python tool for loading, cleaning, detrending, and plotting
-GNSS displacement time series.
-
 Supported file formats
 ----------------------
 * USGS  .rneu   — decimal-year  N  E  U  σN  σE  σU  (mm)
