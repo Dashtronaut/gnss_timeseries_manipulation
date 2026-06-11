@@ -3,8 +3,7 @@
 A quick Python toolkit for loading, cleaning, detrending, and plotting GNSS
 displacement time series.  Built around an **immutable** `TimeSeries` dataclass.
 
-**Supported formats
-**
+**Supported formats**
 
 | Format | Extension | Source |
 |--------|-----------|--------|
