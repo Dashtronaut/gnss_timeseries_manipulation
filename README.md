@@ -1,4 +1,4 @@
-# gnss-tools
+# gnss_timeseries_manipulation
 
 A quick Python toolkit for loading, cleaning, detrending, and plotting GNSS
 displacement time series.  Built around an **immutable** `TimeSeries` dataclass.
@@ -17,7 +17,7 @@ displacement time series.  Built around an **immutable** `TimeSeries` dataclass.
 
 ```bash
 pip install -e .          # editable install from repo root
-pip install gnss-tools    # once published to PyPI
+pip install gnss_timeseries_manipulation    # once published to PyPI
 ```
 
 **Dependencies:** `numpy`, `pandas`, `scipy`, `matplotlib`.
@@ -27,7 +27,7 @@ pip install gnss-tools    # once published to PyPI
 ## Quick-start
 
 ```python
-from gnss-tools import TimeSeries
+from gnss_timeseries_manipulation import TimeSeries
 
 sta = TimeSeries.from_file(
     "albh.rneu",
@@ -91,8 +91,8 @@ Every method returns a **new** `TimeSeries`; the original is never mutated.
 ### Standalone functions
 
 ```python
-from gnss_tools import load_rneu, load_tenv3, load_pos   # → pd.DataFrame
-from gnss_tools import plot_multi                          # multi-station overlay
+from gnss_timeseries_manipulation import load_rneu, load_tenv3, load_pos   # → pd.DataFrame
+from gnss_timeseries_manipulation import plot_multi                          # multi-station overlay
 ```
 
 ---
