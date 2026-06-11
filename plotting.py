@@ -1,5 +1,7 @@
 """
-Plotting functions
+gnss_tools.plotting
+===================
+Publication-ready time-series plots for GNSS displacement data.
 
 Vertical annotations
 --------------------

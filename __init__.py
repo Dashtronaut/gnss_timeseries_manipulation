@@ -1,4 +1,9 @@
 """
+gnss_tools
+==========
+A reusable Python library for loading, cleaning, detrending, and plotting
+GNSS displacement time series.
+
 Supported file formats
 ----------------------
 * USGS  .rneu   — decimal-year  N  E  U  σN  σE  σU  (mm)
@@ -7,7 +12,7 @@ Supported file formats
 
 Quick-start
 -----------
-    from gnss_timeseries_manipulation import TimeSeries
+    from gnss_tools import TimeSeries
 
     sta = TimeSeries.from_file("albh.rneu", name="ALBH")
 

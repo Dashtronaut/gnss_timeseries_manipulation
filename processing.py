@@ -1,14 +1,32 @@
 """
-Helper functions for timeseries.py
-
+gnss_tools.processing
+=====================
+Low-level signal processing routines used by :class:`~gnss_tools.TimeSeries`.
 
 Outlier removal — Hampel identifier
 ------------------------------------
+The **Hampel identifier** (also called the Hampel filter or robust
+median-based outlier detector) flags a sample as an outlier when it
+deviates from the **rolling median** by more than k × 1.4826 × MAD,
+where 1.4826 is the consistency factor that makes MAD a consistent
+estimator of σ under a Gaussian distribution.
+
+This is the standard preprocessing method in the GNSS geodesy community:
+
+* Klos et al. (2015), "On the Handling of Outliers in the GNSS Time Series
+  by Means of the Noise and Probability Analysis", *IAG Symposia* 143.
+  Cited widely as the reference implementation for GPS daily position series.
+* Langbein & Bock (2004) introduced the 3 × IQR threshold that the Hampel
+  approach supersedes for time series because IQR is global whereas the
+  Hampel window is local.
+* Langbein & Svarc (2019), *JGR Solid Earth*, justify the doubled threshold
+  for the Up component given its ~4× larger coloured-noise amplitude.
+
 The Up component uses ``k_eff = k × up_scale`` (default 2 ×) to avoid
 over-rejection in the noisier vertical channel.
 
-Outliers are set to NaN (not interpolated), preserving the original
-data distribution.
+Outliers are **set to NaN** (not interpolated), preserving the original
+data distribution while marking suspect epochs transparently.
 """
 
 from __future__ import annotations

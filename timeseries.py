@@ -1,17 +1,28 @@
 """
-gnss_timeseries_manipulation.timeseries
+gnss_tools.timeseries
 =====================
 Immutable container for a single GNSS station's displacement time series.
 
+Design
+------
+* Built on the user's original ``TimeSeries`` frozen dataclass.
+* All displacement values are in **millimetres** internally.
 * Index is a ``pd.DatetimeIndex``; column order is east / north / up.
-* Offset handling offers both automatic (median-window estimation) and
-  manual (user-supplied mm values) paths, both chainable.
+* ``eqtimes`` and ``offsets`` are stored on the object and automatically
+  drawn as vertical lines during plotting.
+* Offset handling offers both **automatic** (median-window estimation) and
+  **manual** (user-supplied mm values) paths, both chainable.
 
 Outlier removal
 ---------------
-Uses the Hampel identifier (rolling median ± k × MAD, default k = 3,
-window = 11 samples), applied independently per component (Klos et al. 2015,
-*IAG Symposia* 143; Langbein & Bock 2004 for the IQR predecessor).
+Uses the **Hampel identifier** (rolling median ± k × MAD, default k = 3,
+window = 11 samples), applied independently per component.  This is the
+standard approach in the GNSS geodesy literature (Klos et al. 2015,
+*IAG Symposia* 143; Langbein & Bock 2004 for the IQR predecessor), and is
+preferred over a global IQR or σ-clip because it is **local** — robust to
+the genuine trends and step offsets that characterise GNSS position series.
+The Up component uses a doubled MAD multiplier (k × 2) to account for its
+~4× larger noise level (Langbein & Svarc 2019, *JGR Solid Earth*).
 """
 
 from __future__ import annotations
@@ -302,7 +313,15 @@ class TimeSeries:
         components:   Sequence[str] = ("east", "north", "up"),
     ) -> "TimeSeries":
         """
-        Remove outliers using the Hampel identifier.
+        Remove outliers using the **Hampel identifier**.
+
+        The Hampel identifier flags a sample as an outlier when it deviates
+        from the rolling median by more than ``k × MAD × 1.4826`` (the
+        MAD-to-σ scaling constant for a Gaussian distribution).  It is
+        applied independently to each component.
+
+        This is the standard preprocessing method for GNSS daily position
+        time series (Klos et al. 2015; Langbein & Bock 2004).
 
         Parameters
         ----------
@@ -344,6 +363,8 @@ class TimeSeries:
     ) -> "TimeSeries":
         """
         Register known event times without applying any correction.
+        They are stored for later use by :meth:`remove_offsets` and for
+        plotting (vertical lines).
 
         Parameters
         ----------
@@ -367,14 +388,14 @@ class TimeSeries:
 
         Two complementary paths are available and can be combined:
 
-        Automatic (``auto=True``)
+        **Automatic** (``auto=True``)
             For every datetime registered in ``self.offsets``, estimate
             the jump magnitude from the median of the data in a
             ``window_days``-day window immediately before and after the
             event, then subtract it.  Works for both instantaneous
             (antenna swap) and extended (slow-slip) offsets.
 
-        Manual (``manual={...}``)
+        **Manual** (``manual={...}``)
             Subtract user-supplied offsets in mm.  Useful when USGS
             publishes offset magnitudes on the station page, or when an
             automatic estimate is unreliable (e.g. data gaps near the
