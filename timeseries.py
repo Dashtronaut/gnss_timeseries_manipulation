@@ -1,5 +1,5 @@
 """
-gnss_tools.timeseries
+gnss_timeseries_manipulation.timeseries
 =====================
 Immutable container for a single GNSS station's displacement time series.
 
