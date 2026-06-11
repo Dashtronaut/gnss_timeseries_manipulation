@@ -16,8 +16,7 @@ displacement time series.  Built around an **immutable** `TimeSeries` dataclass.
 ## Installation
 
 ```bash
-pip install -e .          # editable install from repo root
-pip install gnss_timeseries_manipulation    # once published to PyPI
+git clone https://github.com/Dashtronaut/gnss_timeseries_manipulation.git
 ```
 
 **Dependencies:** `numpy`, `pandas`, `scipy`, `matplotlib`.
