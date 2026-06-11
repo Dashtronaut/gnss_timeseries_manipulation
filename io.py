@@ -81,25 +81,25 @@ def _make_df(
 # ---------------------------------------------------------------------------
 
 path = Path(path)
-    rows = []
-    first_lines: list[str] = []   # kept for diagnostics
-    with _open_maybe_gzip(path) as fh:
-        for line in fh:
-            raw = line.rstrip("\r\n")   # explicit strip in case universal newlines missed it
-            line = raw.strip()
-            if len(first_lines) < 8:
-                first_lines.append(repr(raw))
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split()
-            if len(parts) < 7:
-                continue
-            try:
-                vals = [float(p) for p in parts[:7]]
-            except ValueError:
-                continue
-            rows.append(vals)
- 
+rows = []
+first_lines: list[str] = []   # kept for diagnostics
+with _open_maybe_gzip(path) as fh:
+    for line in fh:
+        raw = line.rstrip("\r\n")   # explicit strip in case universal newlines missed it
+        line = raw.strip()
+        if len(first_lines) < 8:
+            first_lines.append(repr(raw))
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) < 7:
+            continue
+        try:
+            vals = [float(p) for p in parts[:7]]
+        except ValueError:
+            continue
+        rows.append(vals)
+
     if not rows:
         preview = "\n  ".join(first_lines) if first_lines else "(file appears empty)"
         raise ValueError(
@@ -112,12 +112,12 @@ path = Path(path)
             f"  • File is HTML/XML (server returned an error page)\n"
             f"  • Encoding issue — try opening the file in a text editor to verify\n"
         )
- 
+    
     arr = np.array(rows)
     #              decyr      N          E          U          σN         σE         σU
     return _make_df(arr[:,0], arr[:,2], arr[:,1], arr[:,3], arr[:,5], arr[:,4], arr[:,6])
- 
- 
+
+
 
 
 # ---------------------------------------------------------------------------
