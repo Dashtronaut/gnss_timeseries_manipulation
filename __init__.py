@@ -7,7 +7,7 @@ Supported file formats
 
 Quick-start
 -----------
-    from gnss_tools import TimeSeries
+    from gnss_timeseries_manipulation import TimeSeries
 
     sta = TimeSeries.from_file("albh.rneu", name="ALBH")
 
