@@ -80,22 +80,15 @@ def _make_df(
 # Note: USGS orders N before E in the file; this tool uses east/north.
 # ---------------------------------------------------------------------------
 
-def load_rneu(path) -> pd.DataFrame:
-    """
-    Load a USGS ``.rneu`` time-series file.
-
-    Column order in file: ``decyr  N  E  U  σN  σE  σU``
-    (North before East, all in mm).
-
-    Returns
-    -------
-    pd.DataFrame with canonical columns and DatetimeIndex.
-    """
-    path = Path(path)
+path = Path(path)
     rows = []
+    first_lines: list[str] = []   # kept for diagnostics
     with _open_maybe_gzip(path) as fh:
         for line in fh:
-            line = line.strip()
+            raw = line.rstrip("\r\n")   # explicit strip in case universal newlines missed it
+            line = raw.strip()
+            if len(first_lines) < 8:
+                first_lines.append(repr(raw))
             if not line or line.startswith("#"):
                 continue
             parts = line.split()
@@ -106,13 +99,25 @@ def load_rneu(path) -> pd.DataFrame:
             except ValueError:
                 continue
             rows.append(vals)
-
+ 
     if not rows:
-        raise ValueError(f"No valid data found in {path}")
-
+        preview = "\n  ".join(first_lines) if first_lines else "(file appears empty)"
+        raise ValueError(
+            f"No valid data found in {path}\n\n"
+            f"Expected whitespace-separated columns:\n"
+            f"  decimal_year  N(mm)  E(mm)  U(mm)  σN(mm)  σE(mm)  σU(mm)\n\n"
+            f"First lines of file:\n  {preview}\n\n"
+            f"Common causes:\n"
+            f"  • Wrong file downloaded (e.g. a detrended .data.gz instead of .rneu)\n"
+            f"  • File is HTML/XML (server returned an error page)\n"
+            f"  • Encoding issue — try opening the file in a text editor to verify\n"
+        )
+ 
     arr = np.array(rows)
     #              decyr      N          E          U          σN         σE         σU
     return _make_df(arr[:,0], arr[:,2], arr[:,1], arr[:,3], arr[:,5], arr[:,4], arr[:,6])
+ 
+ 
 
 
 # ---------------------------------------------------------------------------
