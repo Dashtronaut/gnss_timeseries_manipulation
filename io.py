@@ -93,60 +93,99 @@ def _make_df(
 # ---------------------------------------------------------------------------
 # USGS .rneu
 # ---------------------------------------------------------------------------
-# Whitespace-separated ASCII; comment lines start with #.
-# Columns: decimal_year  N(mm)  E(mm)  U(mm)  σN(mm)  σE(mm)  σU(mm)
-#          [optional extra columns ignored]
+# Two variants exist in the wild:
 #
-# Note: USGS orders N before E in the file; we store east/north.
+# Variant A — "nafixed" / detrended download (decimal-year first):
+#   decyr  N(mm)  E(mm)  U(mm)  σN(mm)  σE(mm)  σU(mm)  [extra cols ignored]
+#   First token is a decimal year, e.g. "1993.6377"
+#
+# Variant B — "stacov" / full download (date first, tab-separated):
+#   YYYYMMDD  decyr  N(mm)  E(mm)  U(mm)  flag  σN(mm)  σE(mm)  σU(mm)  wrms  filename
+#   First token is an 8-digit date, e.g. "19930821"
+#   Column 5 ("flag", e.g. "rrr") is a non-numeric quality string, not data.
+#
+# Both variants put North before East in the file; we store east/north
+# internally, so columns are swapped on load.
 # ---------------------------------------------------------------------------
+
+def _parse_rneu_line(parts: list) -> list | None:
+    """
+    Try to extract [decyr, N, E, U, sigN, sigE, sigU] from a split line.
+    Returns None if the line matches neither known .rneu variant.
+    """
+    # Variant A: first token is a decimal year (e.g. "1993.6377")
+    if re.match(r"^\d{4}\.\d+$", parts[0]):
+        if len(parts) < 7:
+            return None
+        try:
+            return [float(p) for p in parts[:7]]
+        except ValueError:
+            return None
+
+    # Variant B: first token is an 8-digit YYYYMMDD date (e.g. "19930821")
+    if re.match(r"^\d{8}$", parts[0]) and len(parts) >= 9:
+        try:
+            decyr   = float(parts[1])
+            n, e, u = float(parts[2]), float(parts[3]), float(parts[4])
+            # parts[5] is the quality flag string ("rrr") — skip it
+            sn, se, su = float(parts[6]), float(parts[7]), float(parts[8])
+            return [decyr, n, e, u, sn, se, su]
+        except (ValueError, IndexError):
+            return None
+
+    return None
+
 
 def load_rneu(path) -> pd.DataFrame:
     """
     Load a USGS ``.rneu`` time-series file.
 
-    Column order in file: ``decyr  N  E  U  σN  σE  σU``
-    (North before East, all in mm).
+    Automatically detects and handles both known variants:
+
+    * **Variant A** (NA-fixed / detrended): ``decyr  N  E  U  σN  σE  σU``
+    * **Variant B** (stacov / full):  ``YYYYMMDD  decyr  N  E  U  flag  σN  σE  σU  …``
+
+    All displacement and sigma values are in mm.  North/East are swapped to
+    the internal (east, north) column order.
 
     Returns
     -------
     pd.DataFrame with canonical columns and DatetimeIndex.
     """
     path = Path(path)
-    rows = []
-    first_lines: list[str] = []   # kept for diagnostics
+    rows: list = []
+    first_lines: list = []   # kept for diagnostics
     with _open_maybe_gzip(path) as fh:
         for line in fh:
-            raw = line.rstrip("\r\n")   # explicit strip in case universal newlines missed it
-            line = raw.strip()
+            raw = line.rstrip("\r\n")
+            stripped = raw.strip()
             if len(first_lines) < 8:
                 first_lines.append(repr(raw))
-            if not line or line.startswith("#"):
+            if not stripped or stripped.startswith("#"):
                 continue
-            parts = line.split()
-            if len(parts) < 7:
-                continue
-            try:
-                vals = [float(p) for p in parts[:7]]
-            except ValueError:
-                continue
-            rows.append(vals)
+            parts = stripped.split()
+            parsed = _parse_rneu_line(parts)
+            if parsed is not None:
+                rows.append(parsed)
 
     if not rows:
         preview = "\n  ".join(first_lines) if first_lines else "(file appears empty)"
         raise ValueError(
             f"No valid data found in {path}\n\n"
-            f"Expected whitespace-separated columns:\n"
-            f"  decimal_year  N(mm)  E(mm)  U(mm)  σN(mm)  σE(mm)  σU(mm)\n\n"
+            f"Recognised .rneu layouts:\n"
+            f"  Variant A: decyr  N(mm)  E(mm)  U(mm)  σN  σE  σU\n"
+            f"  Variant B: YYYYMMDD  decyr  N  E  U  flag  σN  σE  σU  …\n\n"
             f"First lines of file:\n  {preview}\n\n"
             f"Common causes:\n"
-            f"  • Wrong file downloaded (e.g. a detrended .data.gz instead of .rneu)\n"
-            f"  • File is HTML/XML (server returned an error page)\n"
-            f"  • Encoding issue — try opening the file in a text editor to verify\n"
+            f"  • File is HTML (server returned an error page) — open in a browser to check\n"
+            f"  • An unrecognised column layout — please share the first few lines above\n"
         )
 
     arr = np.array(rows)
-    #              decyr      N          E          U          σN         σE         σU
-    return _make_df(arr[:,0], arr[:,2], arr[:,1], arr[:,3], arr[:,5], arr[:,4], arr[:,6])
+    # arr columns: [decyr, N, E, U, sigN, sigE, sigU]
+    # internal storage order is east, north → swap columns 1 and 2 (and 4,5)
+    return _make_df(arr[:, 0], arr[:, 2], arr[:, 1], arr[:, 3],
+                    arr[:, 5], arr[:, 4], arr[:, 6])
 
 
 # ---------------------------------------------------------------------------
@@ -318,11 +357,23 @@ def _sniff_format(path: Path) -> str:
             if not line or line.startswith("#"):
                 continue
             parts = line.split()
-            if re.match(r"^\d{8}$", parts[0]):
-                return "pos"
+            # rneu Variant A: decimal year first
+            if re.match(r"^\d{4}\.\d+$", parts[0]):
+                return "rneu"
+            # UNR tenv3: 4-char station code first, 13+ columns
             if re.match(r"^[A-Z0-9]{4}$", parts[0]) and len(parts) >= 13:
                 return "tenv3"
-            if re.match(r"^\d{4}\.\d+$", parts[0]):
+            # Both rneu Variant B (stacov) and pos start with YYYYMMDD.
+            # Disambiguate: rneu stacov has a non-numeric quality flag
+            # (e.g. "rrr") in column 5; pos's column 5 is a numeric refN.
+            if re.match(r"^\d{8}$", parts[0]):
+                if len(parts) >= 9:
+                    try:
+                        float(parts[5])
+                    except ValueError:
+                        return "rneu"   # column 5 isn't numeric → stacov flag
+                if len(parts) >= 14:
+                    return "pos"
                 return "rneu"
             break
     raise ValueError(

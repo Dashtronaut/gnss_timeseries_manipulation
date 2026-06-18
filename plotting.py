@@ -102,14 +102,15 @@ def plot_station(
                     color=style["color"], alpha=_SIGMA_ALPHA, zorder=2,
                 )
 
-        # Earthquake annotations
-        for eq in station.eqtimes:
-            ax.axvline(eq, label="earthquake" if ax is axes[0] else "",
+        # Earthquake annotations (label only the first line so the legend
+        # shows "earthquake" once, not once per event)
+        for i, eq in enumerate(station.eqtimes):
+            ax.axvline(eq, label="earthquake" if (ax is axes[0] and i == 0) else "",
                        **_EQ_STYLE)
 
-        # Offset / antenna-change annotations
-        for off in station.offsets:
-            ax.axvline(off, label="offset" if ax is axes[0] else "",
+        # Offset / antenna-change annotations (same single-label treatment)
+        for i, off in enumerate(station.offsets):
+            ax.axvline(off, label="offset" if (ax is axes[0] and i == 0) else "",
                        **_OFF_STYLE)
 
         ax.set_ylabel(f"{style['label']} (mm)", fontsize=9)
