@@ -22,32 +22,6 @@ git clone https://github.com/Dashtronaut/gnss_timeseries_manipulation.git
 
 ---
 
-## Quick-start
-
-```python
-from gnss_timeseries_manipulation import TimeSeries
-
-sta = TimeSeries.from_file(
-    "albh.rneu",
-    fmt="rneu",
-    name="ALBH",
-    latitude=48.39,
-    longitude=-123.49,
-    reference_frame="NA-fixed",
-    offsets=["1994-04-15", "1995-01-12", "2015-09-16"],  # antenna changes
-)
-
-sta_processed = (
-    sta
-    .remove_outliers()       
-    .remove_offsets(auto=True)       # auto-estimate & subtract all offsets
-    .detrend(method="linear")
-)
-
-sta_processed.plot(save_path="albh.png")
-print(sta_processed.get_velocity("east"), "mm/yr")
-```
-
 ---
 
 ## Core API
